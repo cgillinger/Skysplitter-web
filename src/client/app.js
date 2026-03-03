@@ -213,55 +213,51 @@ class SkySplitter {
     }
 
     splitText(text) {
-        const words = text.split(' ');
-        let posts = [];
-        let currentPost = '';
-
-        for (let i = 0; i < words.length; i++) {
-            const word = words[i];
-            const potentialPostNumber = posts.length + 1;
-            const maxContinuationLength = ` (${potentialPostNumber}/?)`.length;
-
-            if (currentPost.length + 1 + word.length + maxContinuationLength <= MAX_POST_LENGTH) {
-                currentPost += (currentPost ? ' ' : '') + word;
-            } else {
-                if (currentPost) {
-                    posts.push({
-                        text: currentPost,
-                        link: null
-                    });
-                    currentPost = word;
+        // Split text into chunks where each chunk fits within maxPerChunk characters.
+        const splitIntoChunks = (maxPerChunk) => {
+            const words = text.split(' ');
+            const chunks = [];
+            let current = '';
+            for (const word of words) {
+                const joined = current ? `${current} ${word}` : word;
+                if (joined.length <= maxPerChunk) {
+                    current = joined;
+                } else if (current) {
+                    chunks.push(current);
+                    current = word;
                 } else {
-                    const availableLength = MAX_POST_LENGTH - maxContinuationLength;
-                    posts.push({
-                        text: word.substring(0, availableLength),
-                        link: null
-                    });
-                    currentPost = word.substring(availableLength);
+                    // Single word longer than the limit — hard cut
+                    chunks.push(word.substring(0, maxPerChunk));
+                    current = word.substring(maxPerChunk);
                 }
             }
-        }
+            if (current) chunks.push(current);
+            return chunks;
+        };
 
-        if (currentPost) {
-            posts.push({
-                text: currentPost,
-                link: null
-            });
-        }
+        // Pass 1: rough split with a conservative 9-char suffix budget (" (99/99)").
+        // This tells us approximately how many posts we'll have.
+        const roughChunks = splitIntoChunks(MAX_POST_LENGTH - 9);
 
-        // Add link to the last post if it exists
+        // Pass 2: re-split using the exact suffix length for the estimated total,
+        // e.g. " (18/18)" = 8 chars. This prevents any post from exceeding 300.
+        const suffixBudget = roughChunks.length > 1
+            ? ` (${roughChunks.length}/${roughChunks.length})`.length
+            : 0;
+        const chunks = splitIntoChunks(MAX_POST_LENGTH - suffixBudget);
+
+        let posts = chunks.map(t => ({ text: t, link: null }));
+
+        // Add link to the last post — must account for the suffix that will follow.
         if (this.currentLink && posts.length > 0) {
             const lastPost = posts[posts.length - 1];
             const linkWithSpace = ' ' + this.currentLink;
 
-            if (lastPost.text.length + linkWithSpace.length <= MAX_POST_LENGTH) {
+            if (lastPost.text.length + linkWithSpace.length + suffixBudget <= MAX_POST_LENGTH) {
                 lastPost.text += linkWithSpace;
                 lastPost.link = this.currentLink;
             } else {
-                posts.push({
-                    text: this.currentLink,
-                    link: this.currentLink
-                });
+                posts.push({ text: this.currentLink, link: this.currentLink });
             }
         }
 
