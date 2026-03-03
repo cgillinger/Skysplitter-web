@@ -21,12 +21,16 @@ const clients = new Map();
 app.use(compression());
 app.use(express.json());
 
+if (!process.env.SESSION_SECRET) {
+    console.warn('Warning: SESSION_SECRET not set. Using a fixed fallback secret. Set SESSION_SECRET in production.');
+}
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+    secret: process.env.SESSION_SECRET || 'skysplitter-default-secret-change-me',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
