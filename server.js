@@ -80,6 +80,7 @@ async function requireAuth(req, res, next) {
             req.session.authenticated = false;
             return res.status(401).json({ error: 'Session expired' });
         }
+        req.blueskyClient = client;
         next();
     } catch (error) {
         req.session.authenticated = false;
@@ -153,10 +154,10 @@ app.post('/api/post', requireAuth, async (req, res) => {
     }
 
     try {
-        const client = clients.get(req.sessionID);
-        const result = await client.createPost(text, link, reply);
+        const result = await req.blueskyClient.createPost(text, link, reply);
         res.json(result);
     } catch (error) {
+        console.error('[/api/post] createPost failed:', error);
         res.status(500).json({ error: error.message });
     }
 });
