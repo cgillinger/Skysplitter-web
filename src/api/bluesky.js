@@ -34,6 +34,17 @@ class BlueskyClient {
         }
     }
 
+    async resumeSession(sessionData) {
+        try {
+            await this.agent.resumeSession(sessionData);
+            this.isAuthenticated = true;
+            return true;
+        } catch (error) {
+            this.isAuthenticated = false;
+            throw new Error('Session resume failed: ' + error.message);
+        }
+    }
+
     async login(identifier, appPassword) {
         try {
             await this.agent.login({
